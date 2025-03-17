@@ -65,6 +65,9 @@ exports.removeFromCart = async (req, res) => {
     res.status(500).json({ success: false, message: "Erreur serveur" });
   }
 };
+
+
+
 exports.confirmOrder = async (req, res) => {
   try {
     const { acheteurId, paymentMethod } = req.body;
@@ -74,16 +77,22 @@ exports.confirmOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: "Panier vide" });
     }
 
+    // Récupérer tous les livreurs
+    const livreurs = await Livreur.find({});
+    if (livreurs.length === 0) {
+      return res.status(404).json({ success: false, message: "Aucun livreur trouvé" });
+    }
+
     // Créer une commande pour chaque produit
     const orders = cart.products.map((product) => ({
       acheteurId,
       productId: product.productId,
       quantity: product.quantity,
-      status: "en cours",
-      clientLat: 36.8065, // Exemple de coordonnées (à remplacer par les vraies données)
-      clientLng: 10.1815,
-      vendeurLat: 36.8065, // Exemple de coordonnées (à remplacer par les vraies données)
-      vendeurLng: 10.1815,
+      status: "en attente", // Statut initial
+      livreurs: livreurs.map((livreur) => livreur._id), // Assigner la commande à tous les livreurs
+      clientName: "Nom du client", // Remplacer par les vraies données
+      clientLat: 36.8065, // Latitude du client (à remplacer par les vraies coordonnées)
+      clientLng: 10.1815, // Longitude du client (à remplacer par les vraies coordonnées)
     }));
 
     // Enregistrer les commandes dans la base de données
@@ -114,6 +123,39 @@ exports.getCart = async (req, res) => {
     res.json(cart);
   } catch (error) {
     console.error("Erreur dans getCart:", error);
+    res.status(500).json({ success: false, message: "Erreur serveur" });
+  }
+};
+
+exports.confirmDelivery = async (req, res) => {
+  try {
+    const { orderId, livreurId } = req.body;
+
+    // Trouver la commande
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Commande non trouvée" });
+    }
+
+    // Vérifier si la commande est déjà confirmée par un autre livreur
+    if (order.livreurConfirme) {
+      return res.status(400).json({ success: false, message: "Commande déjà confirmée" });
+    }
+
+    // Assigner la commande au livreur qui confirme
+    order.livreurConfirme = livreurId;
+    order.status = "en cours"; // Mettre à jour le statut
+    await order.save();
+
+    // Supprimer la commande pour tous les autres livreurs
+    await Order.updateMany(
+      { _id: { $ne: orderId }, livreurs: livreurId },
+      { $pull: { livreurs: livreurId } }
+    );
+
+    res.json({ success: true, message: "Commande confirmée avec succès", order });
+  } catch (error) {
+    console.error("Erreur dans confirmDelivery:", error);
     res.status(500).json({ success: false, message: "Erreur serveur" });
   }
 };

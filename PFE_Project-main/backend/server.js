@@ -24,6 +24,7 @@ const productRoutes = require("./routes/productRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRouter");
 const adminRoutes = require("./routes/adminRoutes"); // Importer les routes de l'administrateur
+const confirmDelivery=require("./routes/cartRoutes");
 
 
 app.use("/api/orders", orderRoutes);
@@ -41,6 +42,8 @@ app.use("/auth", authRoutes);
 
 
 app.use("/api", productRoutes);
+app.use("/api", confirmDelivery);  
+
 app.use("/api/admin", adminRoutes); // Utiliser les routes de l'administrateur
 
 

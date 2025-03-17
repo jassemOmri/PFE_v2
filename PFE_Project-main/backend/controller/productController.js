@@ -2,6 +2,26 @@ const jwt = require("jsonwebtoken");
 const Product = require("../models/product");
 const SECRET_KEY = "mysecretkey"
 
+
+
+
+// Obtenir un produit par ID
+exports.getProductById = async (req, res) => {
+  try {
+    const { id } = req.params; // Récupérer l'ID depuis l'URL
+    const product = await Product.findById(id); // Chercher le produit dans la BD
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Produit non trouvé" });
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error("Erreur lors de la récupération du produit:", error);
+    res.status(500).json({ success: false, message: "Erreur serveur" });
+  }
+};
+
 // Obtenir tous les produits
 exports.getProducts = async (req, res) => {
   try {

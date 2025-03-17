@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
-import Navbar from "../comoponents/Navbar";
+import { FaFacebook, FaInstagram, FaWhatsapp, FaFacebookMessenger } from "react-icons/fa";
+import Navbar from "./Navbar";
 import Footer from "./Footer";
 
 const ProductDetails = () => {
-  const { id } = useParams(); // Récupère l'ID du produit depuis l'URL
+  const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [quantity, setQuantity] = useState(1);
+  const [user, setUser] = useState(null); // Supposons que vous avez un état pour l'utilisateur connecté
 
   useEffect(() => {
     axios
@@ -22,86 +25,130 @@ const ProductDetails = () => {
       });
   }, [id]);
 
-  if (loading) {
-    return <div className="text-center py-8">Chargement...</div>;
-  }
+  // Fonction pour ajouter un produit au panier
+  const addToCart = async (product) => {
+    if (!user || !user.userId || user.role !== "acheteur") {
+      alert("Veuillez vous connecter pour ajouter des produits au panier !");
+      return;
+    }
 
-  if (!product) {
-    return <div className="text-center py-8">Produit non trouvé</div>;
-  }
+    const payload = {
+      acheteurId: user.userId,
+      productId: product._id,
+      quantity: quantity, // Utilisez la quantité sélectionnée
+    };
+
+    try {
+      await axios.post("http://localhost:5000/api/cart/add", payload);
+      alert("Produit ajouté au panier !");
+    } catch (error) {
+      console.error("Erreur lors de l'ajout au panier:", error);
+      alert("Erreur lors de l'ajout au panier !");
+    }
+  };
+
+  // Fonction pour partager sur les réseaux sociaux
+  const handleShare = (platform) => {
+    const url = window.location.href;
+    const message = `Découvrez ce produit: ${product.name} - ${url}`;
+
+    switch (platform) {
+      case 'facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+        break;
+      case 'instagram':
+        // Instagram ne supporte pas le partage direct, rediriger vers l'application
+        window.open(`https://www.instagram.com/`, '_blank');
+        break;
+      case 'whatsapp':
+        window.open(`https://wa.me/?text=${message}`, '_blank');
+        break;
+      case 'messenger':
+        window.open(`fb-messenger://share/?link=${url}`, '_blank');
+        break;
+      default:
+        break;
+    }
+  };
+
+  if (loading) return <div className="text-center py-8">Chargement...</div>;
+  if (!product) return <div className="text-center py-8">Produit non trouvé</div>;
 
   return (
-    <div>
+    <div className="bg-gray-100 min-h-screen">
       <Navbar />
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-          {/* Breadcrumb */}
-          <div className="text-sm text-gray-600 mb-4">
-            <a href="/" className="hover:text-gray-900">Home</a> &gt;{" "}
-            <a href="/products" className="hover:text-gray-900">Products</a> &gt;{" "}
-            <span className="text-gray-900">{product.name}</span>
-          </div>
+      <div className="max-w-6xl mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-8 bg-white rounded-lg shadow-lg mt-10">
+        {/* Image */}
+        <div className="flex flex-col items-center">
+          <img
+            src={`http://localhost:5000/uploads/${product.image}`}
+            alt={product.name}
+            className="w-full max-w-md rounded-lg shadow-md"
+          />
+        </div>
 
-          {/* Product Title */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">{product.name}</h1>
+        {/* Détails */}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
+          <p className="text-gray-700 mt-2">{product.description}</p>
 
-          {/* Rating and Stock */}
-          <div className="flex items-center mb-4">
-            <div className="flex text-yellow-400">
-              {"⭐".repeat(5)} {/* Affiche 5 étoiles */}
-            </div>
-            <span className="ml-2 text-gray-700">{product.rating} ({product.stock} en stock)</span>
-          </div>
+          {/* Prix */}
+          <div className="text-2xl font-bold text-red-600 mt-4">{product.price} TND</div>
 
-          {/* Price */}
-          <div className="text-2xl font-bold text-red-600 mb-6">
-            ${product.price} <span className="text-sm text-gray-500">/ unité</span>
-          </div>
-
-          {/* Description */}
-          <p className="text-gray-700 mb-6">{product.description}</p>
-
-          {/* Product Details */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="text-gray-600">Type:</div>
-            <div className="text-gray-900">{product.type}</div>
-            <div className="text-gray-600">Couleur:</div>
-            <div className="text-gray-900">{product.color}</div>
-            <div className="text-gray-600">Matériau:</div>
-            <div className="text-gray-900">{product.material}</div>
-            <div className="text-gray-600">Marque:</div>
-            <div className="text-gray-900">{product.brand}</div>
-          </div>
-
-          {/* Size and Quantity */}
-          <div className="flex items-center gap-4 mb-6">
-            <label htmlFor="size" className="text-gray-600">Taille:</label>
-            <select id="size" className="p-2 border rounded">
-              <option value="small">Small</option>
-              <option value="medium">Medium</option>
-              <option value="large">Large</option>
-            </select>
-
+          {/* Quantité */}
+          <div className="mt-4">
             <label htmlFor="quantity" className="text-gray-600">Quantité:</label>
             <input
               type="number"
               id="quantity"
-              defaultValue="1"
+              value={quantity}
               min="1"
-              className="p-2 border rounded w-16"
+              className="ml-2 p-2 border rounded w-16"
+              onChange={(e) => setQuantity(e.target.value)}
             />
           </div>
 
-          {/* Buttons */}
-          <div className="flex gap-4">
+          {/* Boutons */}
+          <div className="mt-6 flex flex-wrap gap-4">
             <button className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">
               Acheter maintenant
             </button>
-            <button className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+            <button
+              className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+              onClick={() => addToCart(product)}
+            >
               Ajouter au panier
             </button>
             <button className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
               Sauvegarder
+            </button>
+          </div>
+
+          {/* Partage */}
+          <div className="mt-6 flex gap-4">
+            <button
+              onClick={() => handleShare('facebook')}
+              className="text-blue-600 text-2xl hover:text-blue-700"
+            >
+              <FaFacebook />
+            </button>
+            <button
+              onClick={() => handleShare('instagram')}
+              className="text-pink-500 text-2xl hover:text-pink-600"
+            >
+              <FaInstagram />
+            </button>
+            <button
+              onClick={() => handleShare('whatsapp')}
+              className="text-green-500 text-2xl hover:text-green-600"
+            >
+              <FaWhatsapp />
+            </button>
+            <button
+              onClick={() => handleShare('messenger')}
+              className="text-blue-400 text-2xl hover:text-blue-500"
+            >
+              <FaFacebookMessenger />
             </button>
           </div>
         </div>
