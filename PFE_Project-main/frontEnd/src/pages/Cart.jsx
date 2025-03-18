@@ -27,20 +27,45 @@ const Cart = () => {
     navigate("/payment"); // Redirige vers la page de paiement
   };
 
-  // Confirmer la commande avec paiement à la livraison
-  const handleDeliveryPayment = async () => {
-    try {
-      await axios.post("http://localhost:5000/api/cart/confirm", {
-        acheteurId: user.userId,
-        paymentMethod: "à la livraison",
-      });
-      alert("Commande confirmée ! Les produits seront livrés.");
-      setCart([]); // Vider le panier
-    } catch (error) {
-      console.error("Erreur lors de la confirmation de la commande:", error);
-      alert("Erreur lors de la confirmation de la commande");
-    }
+const handleDeliveryPayment = async () => {
+  if (!cart.length) {
+    alert("Votre panier est vide !");
+    return;
+  }
+
+  const orderData = {
+    acheteurId: user.userId?.trim(),
+    paymentMethod: "à la livraison",
+    clientLng: user?.location?.lng ?? 0,
+    clientLat: user?.location?.lat ?? 0,
+    clientName: user?.name || "Nom inconnu",
+    products: cart.map((product) => ({
+      productId: product.productId?.trim(),
+      productName: product.name,
+      quantity: Number(product.quantity) || 1,
+      price: Number(product.price) || 0,
+    })),
   };
+
+  if (!orderData.acheteurId || !orderData.products.length) {
+    alert("Erreur : L'acheteur ou les produits sont manquants !");
+    return;
+  }
+
+  try {
+    console.log("Données envoyées :", orderData);
+
+    const response = await axios.post("http://localhost:5000/api/cart/confirm", orderData);
+
+    alert("Commande confirmée !");
+    setCart([]);
+  } catch (error) {
+    console.error("Erreur lors de la confirmation :", error);
+    console.log("Réponse API :", error.response?.data);
+    alert(error.response?.data?.message || "Erreur lors de la confirmation.");
+  }
+};
+
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">

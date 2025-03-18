@@ -24,10 +24,9 @@ const productRoutes = require("./routes/productRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRouter");
 const adminRoutes = require("./routes/adminRoutes"); // Importer les routes de l'administrateur
-const confirmDelivery=require("./routes/cartRoutes");
 
+const livreurRoutes = require("./routes/livreurRoutes");
 
-app.use("/api/orders", orderRoutes);
 
 app.use("/api/cart", cartRoutes); 
 
@@ -42,9 +41,11 @@ app.use("/auth", authRoutes);
 
 
 app.use("/api", productRoutes);
-app.use("/api", confirmDelivery);  
 
 app.use("/api/admin", adminRoutes); // Utiliser les routes de l'administrateur
+
+app.use("/api/livreur", orderRoutes);
+app.use("/api", livreurRoutes);
 
 
 mongoose.connect("mongodb://127.0.0.1:27017/employee", {

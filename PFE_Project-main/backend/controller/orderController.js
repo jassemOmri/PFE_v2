@@ -1,26 +1,33 @@
 const Order = require("../models/order");
-const User = require("../models/User"); // Importez le modèle User si nécessaire
 
-exports.getOrdersByAcheteur = async (req, res) => {
+exports.getOrders = async (req, res) => {
   try {
-    const { acheteurId } = req.params;
-
-    // ✅ Vérifiez que l'acheteur existe
-    const acheteur = await User.findById(acheteurId);
-    if (!acheteur) {
-      return res.status(404).json({ success: false, message: "Acheteur non trouvé" });
-    }
-
-    // ✅ Récupérez les commandes de l'acheteur
-    const orders = await Order.find({ acheteurId }).populate("product"); // Assurez-vous que `product` est correctement peuplé
-
-    if (orders.length === 0) {
-      return res.status(404).json({ success: false, message: "Aucune commande trouvée pour cet acheteur" });
-    }
-
+    const orders = await Order.find({ livreur: null });
     res.json(orders);
   } catch (error) {
-    console.error("🚨 Erreur dans getOrdersByAcheteur:", error); // Affichez l'erreur complète
-    res.status(500).json({ success: false, message: "Erreur serveur" });
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+exports.confirmOrder = async (req, res) => {
+  const { livreurId } = req.body;
+  const { orderId } = req.params;
+
+  try {
+    // Vérifier si la commande existe
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Commande non trouvée" });
+
+    // Associer la commande au livreur et mettre à jour le statut
+    order.livreur = livreurId;
+    order.status = "en cours de livraison";
+    await order.save();
+
+    // Supprimer la commande pour les autres livreurs
+    await Order.deleteMany({ _id: { $ne: orderId }, clientName: order.clientName });
+
+    res.json({ message: "Commande assignée avec succès", order });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };

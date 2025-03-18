@@ -1,6 +1,7 @@
 const Cart = require("../models/Cart");
 const Product = require("../models/product");
 const User = require("../models/User");
+const Order = require("../models/order");
 
 exports.addToCart = async (req, res) => {
   try {
@@ -68,45 +69,6 @@ exports.removeFromCart = async (req, res) => {
 
 
 
-exports.confirmOrder = async (req, res) => {
-  try {
-    const { acheteurId, paymentMethod } = req.body;
-
-    const cart = await Cart.findOne({ acheteurId });
-    if (!cart || cart.products.length === 0) {
-      return res.status(400).json({ success: false, message: "Panier vide" });
-    }
-
-    // Récupérer tous les livreurs
-    const livreurs = await Livreur.find({});
-    if (livreurs.length === 0) {
-      return res.status(404).json({ success: false, message: "Aucun livreur trouvé" });
-    }
-
-    // Créer une commande pour chaque produit
-    const orders = cart.products.map((product) => ({
-      acheteurId,
-      productId: product.productId,
-      quantity: product.quantity,
-      status: "en attente", // Statut initial
-      livreurs: livreurs.map((livreur) => livreur._id), // Assigner la commande à tous les livreurs
-      clientName: "Nom du client", // Remplacer par les vraies données
-      clientLat: 36.8065, // Latitude du client (à remplacer par les vraies coordonnées)
-      clientLng: 10.1815, // Longitude du client (à remplacer par les vraies coordonnées)
-    }));
-
-    // Enregistrer les commandes dans la base de données
-    await Order.insertMany(orders);
-
-    // Vider le panier
-    await Cart.findOneAndDelete({ acheteurId });
-
-    res.json({ success: true, message: `Commande confirmée avec paiement ${paymentMethod}` });
-  } catch (error) {
-    console.error("Erreur dans confirmOrder:", error);
-    res.status(500).json({ success: false, message: "Erreur serveur" });
-  }
-};
 
 exports.getCart = async (req, res) => {
   try {
@@ -127,35 +89,33 @@ exports.getCart = async (req, res) => {
   }
 };
 
-exports.confirmDelivery = async (req, res) => {
+exports.confirmOrder = async (req, res) => {
   try {
-    const { orderId, livreurId } = req.body;
+    console.log("Données reçues :", req.body); // 🔍 Vérifier les données reçues
 
-    // Trouver la commande
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({ success: false, message: "Commande non trouvée" });
+    const { acheteurId, paymentMethod, clientLng, clientLat, clientName, products } = req.body;
+
+    if (!acheteurId || clientLng == null || clientLat == null || !clientName || !products?.length) {
+      return res.status(400).json({ success: false, message: "Données manquantes" });
     }
 
-    // Vérifier si la commande est déjà confirmée par un autre livreur
-    if (order.livreurConfirme) {
-      return res.status(400).json({ success: false, message: "Commande déjà confirmée" });
-    }
+    const orders = products.map((product) => ({
+      acheteurId,
+      productId: product.productId,
+      productName: product.productName,
+      quantity: product.quantity,
+      clientLng,
+      clientLat,
+      clientName,
+      paymentMethod,
+      status: "en attente",
+    }));
 
-    // Assigner la commande au livreur qui confirme
-    order.livreurConfirme = livreurId;
-    order.status = "en cours"; // Mettre à jour le statut
-    await order.save();
+    await Order.insertMany(orders);
+    res.json({ success: true, message: "Commande confirmée avec succès." });
 
-    // Supprimer la commande pour tous les autres livreurs
-    await Order.updateMany(
-      { _id: { $ne: orderId }, livreurs: livreurId },
-      { $pull: { livreurs: livreurId } }
-    );
-
-    res.json({ success: true, message: "Commande confirmée avec succès", order });
   } catch (error) {
-    console.error("Erreur dans confirmDelivery:", error);
+    console.error("Erreur lors de la confirmation de la commande:", error);
     res.status(500).json({ success: false, message: "Erreur serveur" });
   }
 };

@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useContext } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { FaFacebook, FaInstagram, FaWhatsapp, FaFacebookMessenger } from "react-icons/fa";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import UserContext from "../context/UserContext";
 
 const ProductDetails = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [user, setUser] = useState(null); // Supposons que vous avez un état pour l'utilisateur connecté
+    const { user } = useContext(UserContext); 
 
   useEffect(() => {
     axios
@@ -27,6 +28,7 @@ const ProductDetails = () => {
 
   // Fonction pour ajouter un produit au panier
   const addToCart = async (product) => {
+    console.log(user)
     if (!user || !user.userId || user.role !== "acheteur") {
       alert("Veuillez vous connecter pour ajouter des produits au panier !");
       return;
@@ -153,6 +155,7 @@ const ProductDetails = () => {
           </div>
         </div>
       </div>
+      
       <Footer />
     </div>
   );

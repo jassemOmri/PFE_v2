@@ -2,7 +2,6 @@ import React, { useContext } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Cart from "./pages/Cart";
-import Product from "./pages/Product";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
 import LivreurDashboard from "./comoponents/LivreurDashboard";
@@ -11,7 +10,7 @@ import VendeurDashboard from "./comoponents/VendeurDashboard";
 import ProductDetails from "./comoponents/ProductDetails";
 import UserNavbar from "./comoponents/UserNavbar";
 import Navbar from "./comoponents/Navbar";
-import UserContext from "./context/UserContext";
+import UserContext, { UserProvider } from "./context/UserContext";
 import Payment from "./pages/Payment"; 
 import AdminDashboard from "./comoponents/AdminDashboard"; // Importez le composant AdminDashboard
 
@@ -30,11 +29,12 @@ const App = () => {
       {!user && <Navbar onSearch={handleSearch} />}
 
       {user && <UserNavbar />}
-
+     
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/cart" element={<Cart />} />
-      
+              <Route path="/productDetails" element={<ProductDetails />} />
+
         <Route path="/signup" element={<SignUp />} />
         <Route path="/login" element={<Login />} />
         <Route path="/livreur-dashboard" element={<LivreurDashboard />} />
@@ -46,6 +46,7 @@ const App = () => {
                  <Route path="/admin" element={<AdminDashboard />} /> {/* Route pour le tableau de bord admin */}
 
       </Routes>
+      
     </>
   );
 };
