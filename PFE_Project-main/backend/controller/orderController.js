@@ -31,3 +31,77 @@ exports.confirmOrder = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
+const mongoose = require("mongoose");
+
+exports.getOrdersByVendeur = async (req, res) => {
+  try {
+    const { vendeurId } = req.params;
+
+    // ⚠️ Transformation string -> ObjectId
+    const vendeurObjectId = new mongoose.Types.ObjectId(vendeurId);
+
+    const orders = await Order.find({ "products.vendeurId": vendeurObjectId });
+
+    const filtered = orders.map((order) => {
+      const produitsDuVendeur = order.products.filter(
+        (p) => p.vendeurId.toString() === vendeurId
+      );
+      return {
+        _id: order._id,
+        clientName: order.clientName,
+        status: order.status,
+        products: produitsDuVendeur,
+      };
+    });
+
+    res.json(filtered);
+  } catch (err) {
+    console.error("Erreur serveur vendeur commandes :", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+exports.confirmOrderByVendeur = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.orderId);
+    if (!order) return res.status(404).json({ message: "Commande non trouvée" });
+
+    order.status = "confirmée";
+    await order.save();
+
+    // ✅ Retourner le clientId pour la notification WebSocket
+    res.json({
+      success: true,
+      message: "Commande confirmée",
+      clientId: order.acheteurId,
+      clientName: order.clientName,
+    });
+
+  } catch (error) {
+    console.error("Erreur lors de la confirmation :", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
+exports.cancelOrderByVendeur = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.orderId);
+    if (!order) return res.status(404).json({ message: "Commande non trouvée" });
+
+    order.status = "annulée";
+    await order.save();
+
+    // ✅ Retourner le clientId pour la notification WebSocket
+    res.json({
+      success: true,
+      message: "Commande annulée",
+      clientId: order.acheteurId,
+      clientName: order.clientName,
+    });
+
+  } catch (error) {
+    console.error("Erreur lors de l'annulation :", error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};

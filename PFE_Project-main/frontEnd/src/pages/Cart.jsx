@@ -8,81 +8,106 @@ const Cart = () => {
   const { user } = useContext(UserContext);
   const navigate = useNavigate();
 
+  // 🔄 Charger le panier
   useEffect(() => {
     if (user?.userId) {
       axios
         .get(`http://localhost:5000/api/cart/${user.userId}`)
-        .then((response) => setCart(response.data.products))
-        .catch((error) => console.error("Erreur:", error));
+        .then((response) => setCart(response.data.products || []))
+        .catch((error) => console.error("Erreur chargement panier:", error));
     }
   }, [user]);
 
-  // Calculer le total du panier
+
   const calculateTotal = () => {
-    return cart.reduce((total, product) => total + product.price * product.quantity, 0);
+    return cart.reduce((total, product) => {
+      const price = parseFloat(product.price || 0);
+      const quantity = parseInt(product.quantity || 1);
+      return total + price * quantity;
+    }, 0);
   };
 
-  // Rediriger vers la page de paiement en ligne
+  // ❌ Supprimer un produit du panier
+  const handleRemoveProduct = async (productId) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/cart/remove/${user.userId}/${productId}`);
+      setCart(cart.filter((item) => item.productId !== productId));
+    } catch (error) {
+      console.error("Erreur suppression produit:", error);
+      alert("Erreur lors de la suppression du produit.");
+    }
+  };
+
+  // 💳 Paiement en ligne
   const handleOnlinePayment = () => {
-    navigate("/payment"); // Redirige vers la page de paiement
+    const cartTotal = calculateTotal();
+    navigate("/payment", { state: { cartTotal, source: "cart" } });
   };
 
-const handleDeliveryPayment = async () => {
-  if (!cart.length) {
-    alert("Votre panier est vide !");
-    return;
-  }
+  // 🚚 Paiement à la livraison
+  const handleDeliveryPayment = async () => {
+    if (!cart.length) {
+      alert("Votre panier est vide !");
+      return;
+    }
 
-  const orderData = {
-    acheteurId: user.userId?.trim(),
-    paymentMethod: "à la livraison",
-    clientLng: user?.location?.lng ?? 0,
-    clientLat: user?.location?.lat ?? 0,
-    clientName: user?.name || "Nom inconnu",
-    products: cart.map((product) => ({
-      productId: product.productId?.trim(),
-      productName: product.name,
-      quantity: Number(product.quantity) || 1,
-      price: Number(product.price) || 0,
-    })),
+    const orderData = {
+      acheteurId: user.userId?.trim(),
+      paymentMethod: "à la livraison",
+      clientLng: user?.location?.lng ?? 0,
+      clientLat: user?.location?.lat ?? 0,
+      clientName: user?.name || "Nom inconnu",
+      products: cart.map((product) => ({
+        productId: product.productId?.trim(),
+        productName: product.name,
+        quantity: Number(product.quantity) || 1,
+        price: Number(product.reguler) || 0,
+        vendeurId: product.vendeurId?.trim() || "",
+      })),
+    };
+
+    try {
+      await axios.post("http://localhost:5000/api/cart/confirm", orderData);
+      await axios.delete(`http://localhost:5000/api/cart/clear/${user.userId}`);
+      setCart([]);
+      alert("Commande confirmée !");
+    } catch (error) {
+      console.error("Erreur confirmation:", error);
+      alert(error.response?.data?.message || "Erreur lors de la confirmation.");
+    }
   };
-
-  if (!orderData.acheteurId || !orderData.products.length) {
-    alert("Erreur : L'acheteur ou les produits sont manquants !");
-    return;
-  }
-
-  try {
-    console.log("Données envoyées :", orderData);
-
-    const response = await axios.post("http://localhost:5000/api/cart/confirm", orderData);
-
-    alert("Commande confirmée !");
-    setCart([]);
-  } catch (error) {
-    console.error("Erreur lors de la confirmation :", error);
-    console.log("Réponse API :", error.response?.data);
-    alert(error.response?.data?.message || "Erreur lors de la confirmation.");
-  }
-};
-
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Votre Panier</h2>
+
       {cart.length === 0 ? (
         <p className="text-gray-500">Votre panier est vide.</p>
       ) : (
         <div className="space-y-4">
           {cart.map((product) => (
-            <div key={product.productId} className="bg-white p-4 rounded-lg shadow-md">
-              <h4 className="text-lg font-semibold text-gray-900">{product.name}</h4>
-              <p className="text-gray-600">{product.price}€ x {product.quantity}</p>
+            <div key={product.productId} className="bg-white p-4 rounded-lg shadow-md flex justify-between items-center">
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900">{product.name}</h4>
+                <p className="text-gray-600">
+                  {parseFloat(product.price).toFixed(2)}dt x {product.quantity}
+                </p>
+              </div>
+              <button
+                onClick={() => handleRemoveProduct(product.productId)}
+                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-400"
+              >
+                Supprimer
+              </button>
             </div>
           ))}
+
           <div className="mt-6">
-            <p className="text-xl font-bold text-gray-800">Total : {calculateTotal().toFixed(2)}€</p>
+            <p className="text-xl font-bold text-gray-800">
+              Total : {calculateTotal().toFixed(2)}dt
+            </p>
           </div>
+
           <div className="mt-6 space-x-4">
             <button
               onClick={handleOnlinePayment}
@@ -90,6 +115,7 @@ const handleDeliveryPayment = async () => {
             >
               Payer en ligne
             </button>
+
             <button
               onClick={handleDeliveryPayment}
               className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-400 transition"

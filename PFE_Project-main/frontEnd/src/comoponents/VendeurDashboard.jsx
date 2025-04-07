@@ -1,213 +1,266 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import UserNavbar from "./UserNavbar";
+import categoriesData from "../data/categoriesData"; // chemin selon ta structure
+import { useNavigate } from "react-router-dom";
+
 
 const VendeurDashboard = () => {
+const navigate = useNavigate();
   const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [newProduct, setNewProduct] = useState({ name: "", price: "", image: null ,description:""});
-  const vendeurId = localStorage.getItem("vendeurId");
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    description: "",
+    regularPrice: "",
+    salePrice: "",
+    image: null,
+    category: "",
+  });
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [vendeurId, setVendeurId] = useState(null); //  mettre vendeurId dans le state Reac
+
+  // 1️⃣ Lire vendeurId au chargement
+  useEffect(() => {
+    const storedId = localStorage.getItem("vendeurId");
+    if (!storedId) {
+      console.warn("⚠️ vendeurId manquant dans localStorage");
+      return;
+    }
+    setVendeurId(storedId);
+    setCategories(categoriesData);
+  }, []);
+
+  // 2️⃣ Charger les produits dès que vendeurId est dispo
+   const fetchProducts = async (id) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/products/vendeur/${id}`);
+      setProducts(response.data);
+    } catch (error) {
+      console.error("Erreur lors de la récupération des produits:", error);
+    }
+  };
+
 
   useEffect(() => {
     if (vendeurId) {
-      axios.get(`http://localhost:5000/api/products/vendeur/${vendeurId}`)
-        .then((response) => setProducts(response.data))
-        .catch((error) => console.error("Erreur lors de la récupération des produits:", error));
-
-      axios.get(`http://localhost:5000/api/orders/vendeur/${vendeurId}`)
-        .then((response) => setOrders(response.data))
-        .catch((error) => console.error("Erreur lors de la récupération des commandes:", error));
+      fetchProducts(vendeurId);
     }
   }, [vendeurId]);
 
+ 
+
   const handleChange = (e) => {
-    setNewProduct({ ...newProduct, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setNewProduct({ ...newProduct, [name]: value });
   };
 
-  const handleImageChange = (e) => {
-    setNewProduct({ ...newProduct, image: e.target.files[0] });
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem("token");
 
-  const handleDescChange = (e) => {
-    setNewProduct({ ...newProduct, description: e.target.value });
-  };
-const addProduct = async (e) => {
-  e.preventDefault();
+    if (!token) {
+      alert("Veuillez vous connecter pour ajouter un produit");
+      return;
+    }
 
-  const token = localStorage.getItem("token"); // Récupérez le token depuis le localStorage
-  if (!token) {
-    alert("Veuillez vous connecter pour ajouter un produit");
-    return;
-  }
+    if (
+      !newProduct.name ||
+      !newProduct.description ||
+      !newProduct.regularPrice ||
+      !newProduct.image ||
+      !newProduct.category
+    ) {
+      alert("Veuillez remplir tous les champs requis");
+      return;
+    }
 
-  const formData = new FormData();
-  formData.append("name", newProduct.name);
-  formData.append("price", newProduct.price);
-  formData.append("description", newProduct.description); // Ajoutez cette ligne
-  formData.append("image", newProduct.image); // Assurez-vous que `newProduct.image` est un fichier
+    const formData = new FormData();
+    formData.append("name", newProduct.name);
+    formData.append("description", newProduct.description);
+    formData.append("regularPrice", newProduct.regularPrice);
+    formData.append("salePrice", newProduct.salePrice);
+    formData.append("category", newProduct.category);
+    formData.append("image", newProduct.image);
 
-  console.log(formData);
-  try {
-    const response = await axios.post("http://localhost:5000/api/products", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data", // Important pour les fichiers
-        Authorization: `Bearer ${token}`, // Envoyez le token dans les en-têtes
-      },
-    });
-
-    
-    console.log("Produit ajouté avec succès:", response.data);
-    alert("Produit ajouté avec succès !");
-    setNewProduct({ name: "", price: "", image: null, description: "" }); // Réinitialisez le formulaire
-  } catch (error) {
-    console.error("Erreur lors de l'ajout du produit:", error);
-    alert("Erreur lors de l'ajout du produit");
-  }
-};
-
-  const deleteProduct = async (productId) => {
     try {
-      await axios.delete(`http://localhost:5000/api/products/${productId}`);
-      setProducts(products.filter((product) => product._id !== productId));
+      await axios.post("http://localhost:5000/api/products", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      alert("Produit ajouté avec succès !");
+      setNewProduct({
+        name: "",
+        description: "",
+        regularPrice: "",
+        salePrice: "",
+        image: null,
+        category: "",
+      });
+      fetchProducts(vendeurId);
     } catch (error) {
-      console.error("Erreur lors de la suppression du produit:", error);
+      console.error("Erreur lors de l'ajout du produit:", error);
+      alert("Erreur lors de l'ajout du produit");
     }
   };
 
-  const handleOrderStatus = async (orderId, status) => {
-    try {
-      await axios.put(`http://localhost:5000/api/orders/${orderId}`, { status });
-      setOrders(
-        orders.map((order) =>
-          order._id === orderId ? { ...order, status } : order
-        ) 
-      );
-      if (status === "confirmé") {
-        // Rediriger la commande vers le dashboard du livreur
-        await axios.post(`http://localhost:5000/api/livreur/orders`, { orderId });
-      }
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour de la commande:", error);
-    }
-  };
+  const filteredProducts =
+    selectedCategory === "all"
+      ? products
+      : products.filter((product) => product.category === selectedCategory);
 
   return (
-    <div><UserNavbar/>
-    <div className="container mx-auto p-6 min-h-screen">
-      <h2 className="text-2xl font-extrabold text-green-600 mb-6 text-center">Tableau de Bord Vendeur</h2>
+    <div>
+      <UserNavbar />
+         
+      <div className="p-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard Vendeur</h1>
+             
 
-      {/* Formulaire d'ajout de produit */}
-      <form
-        onSubmit={addProduct}
-        className="bg-white shadow-lg border rounded-lg p-4 mb-10 max-w-md mx-auto"
-      >
-        <h3 className="text-lg font-semibold text-gray-800 mb-3">Ajouter un produit</h3>
-        <input
-          type="text"
-          name="name"
-          placeholder="Nom du produit"
-          value={newProduct.name}
-          onChange={handleChange}
-          className="border p-2 w-full mb-2 rounded focus:ring-2 focus:ring-green-400"
-          required
-        />
-        <input
-          type="number"
-          name="price"
-          placeholder="Prix"
-          value={newProduct.price}
-          onChange={handleChange}
-          className="border p-2 w-full mb-2 rounded focus:ring-2 focus:ring-green-400"
-          required
-        />
-        <input
-          type="file"
-          onChange={handleImageChange}
-          className="border p-2 w-full mb-4 rounded focus:ring-2 focus:ring-green-400"
-          required
-        />
-         <input
-          type="text"
-          name="description"
-          value={newProduct.description}
-          onChange={handleDescChange}
-          className="border p-2 w-full mb-4 rounded focus:ring-2 focus:ring-green-400"
-          required
-        />
 
-        <button
-          type="submit"
-          className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-400"
-        >
-          Ajouter
-        </button>
-      </form>
-
-      {/* Liste des produits */}
-      <h3 className="text-xl font-semibold text-gray-800 mb-4">Vos produits</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-        {products.map((product) => (
-          <div key={product._id} className="bg-white border p-4 rounded shadow hover:shadow-md">
-            <img
-              src={`http://localhost:5000/uploads/${product.image}`}
-              alt={product.name}
-              className="w-full h-32 object-cover rounded mb-3"
-            />
-            <h4 className="text-lg font-bold text-gray-700">{product.name}</h4>
-            <p className="text-green-600 font-semibold">${product.price}</p>
-            <button
-              onClick={() => deleteProduct(product._id)}
-              className="w-full bg-red-500 text-white py-1 mt-3 rounded hover:bg-red-400"
-            >
-              Supprimer
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Tableau des commandes */}
-      <h3 className="text-xl font-semibold text-gray-800 mb-4">Commandes en attente</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse border border-gray-200">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-3 border">Client</th>
-              <th className="p-3 border">Produit</th>
-              <th className="p-3 border">Quantité</th>
-              <th className="p-3 border">Prix total</th>
-              <th className="p-3 border">Statut</th>
-              <th className="p-3 border">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <tr key={order._id} className="hover:bg-gray-50">
-                <td className="p-3 border">{order.clientName}</td>
-                <td className="p-3 border">{order.productName}</td>
-                <td className="p-3 border">{order.quantity}</td>
-                <td className="p-3 border">${order.totalPrice}</td>
-                <td className="p-3 border font-medium text-gray-700">{order.status}</td>
-                <td className="p-3 border space-x-2">
-                  <button
-                    onClick={() => handleOrderStatus(order._id, "confirmé")}
-                    className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-400"
-                  >
-                    Confirmer
-                  </button>
-                  <button
-                    onClick={() => handleOrderStatus(order._id, "refusé")}
-                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-400"
-                  >
-                    Refuser
-                  </button>
-                </td>
-              </tr>
+        {/* Filtre par catégorie */}
+        <div className="mb-4">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="p-2 border border-gray-300 rounded-md"
+          >
+            <option value="all">Toutes les catégories</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.name}>
+                {category.name}
+              </option>
             ))}
-          </tbody>
-        </table>
+          </select>
+        </div>
+
+        {/* Disposition inversée : formulaire à droite */}
+        <div className="flex flex-col lg:flex-row-reverse gap-6">
+          {/* Formulaire */}
+          <div className="lg:w-1/3 p-6 bg-white rounded-lg shadow-lg">
+
+
+
+             <button
+                onClick={() => navigate("/vendeur-commandes")}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-500 transition"
+              >
+                Voir les commandes
+              </button>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Ajouter un produit</h2>
+
+            <form onSubmit={handleSubmit}>
+              <InputField label="Nom du produit" name="name" value={newProduct.name} onChange={handleChange} />
+              <TextAreaField label="Description" name="description" value={newProduct.description} onChange={handleChange} />
+              <InputField label="Prix régulier" name="regularPrice" type="number" value={newProduct.regularPrice} onChange={handleChange} />
+              <InputField label="Prix de vente" name="salePrice" type="number" value={newProduct.salePrice} onChange={handleChange} />
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700">Catégorie</label>
+                <select
+                  name="category"
+                  value={newProduct.category}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                  required
+                >
+                  <option value="">Sélectionner une catégorie</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700">Image</label>
+                <input
+                  type="file"
+                  name="image"
+                  accept="image/*"
+                  onChange={(e) => setNewProduct({ ...newProduct, image: e.target.files[0] })}
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-400"
+              >
+                Ajouter le produit
+              </button>
+            </form>
+          </div>
+
+          {/* Liste des produits */}
+          <div className="lg:w-2/3 p-6 bg-white rounded-lg shadow-lg">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Mes produits</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredProducts.length === 0 ? (
+                <p className="text-gray-500">Aucun produit trouvé dans cette catégorie.</p>
+              ) : (
+                filteredProducts.map((product) => (
+                  <div key={product._id} className="bg-gray-50 p-4 rounded-lg shadow-sm">
+                    <img
+                      src={`http://localhost:5000/uploads/${product.image}`}
+                      alt={product.name}
+                      className="w-full h-48 object-cover rounded-md mb-4"
+                    />
+                    <h3 className="text-lg font-semibold text-gray-800">{product.name}</h3>
+                    <p className="text-gray-600 text-sm mb-2">{product.description}</p>
+                    <p className="text-gray-900 font-bold">${product.regularPrice}</p>
+                    <div className="flex justify-between items-center mt-4">
+                      <button className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-400">Supprimer</button>
+                      <button className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-400">Modifier</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-    </div></div>
+    </div>
   );
 };
+
+// Champs réutilisables
+const InputField = ({ label, name, value, onChange, type = "text" }) => (
+  <div className="mb-4">
+    <label className="block text-sm font-medium text-gray-700">{label}</label>
+    <input
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="w-full px-4 py-2 border border-gray-300 rounded-md"
+      required
+    />
+  </div>
+);
+
+const TextAreaField = ({ label, name, value, onChange }) => (
+  <div className="mb-4">
+    <label className="block text-sm font-medium text-gray-700">{label}</label>
+    <textarea
+      name={name}
+      value={value}
+      onChange={onChange}
+      className="w-full px-4 py-2 border border-gray-300 rounded-md"
+      rows="4"
+      required
+    />
+  </div>
+
+
+
+
+    
+
+
+);
 
 export default VendeurDashboard;

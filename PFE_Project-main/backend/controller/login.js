@@ -6,7 +6,7 @@ const SECRET_KEY = "mysecretkey";
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body    ;
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -18,7 +18,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ success: false, message: "Mot de passe incorrect" });
     }
 
-    const token = jwt.sign({ userId: user._id, role: user.role }, SECRET_KEY, { expiresIn: "1h" });
+    const token = jwt.sign({ userId: user._id, role: user.role }, SECRET_KEY, { expiresIn: "2h" });
  
     let redirectUrl = "/";
     if (user.role === "livreur") {

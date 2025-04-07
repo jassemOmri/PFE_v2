@@ -16,37 +16,42 @@ const Login = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
 
-    try {
-      const response = await axios.post("http://localhost:5000/auth/login", formData);
-      const { success, token, role, userName, userId, redirectUrl } = response.data;
+  try {
+    const response = await axios.post("http://localhost:5000/auth/login", formData);
+    const { success, token, role, userName, userId, redirectUrl } = response.data;
 
-      if (success) {
-        const userData = { userId, role, name: userName };
+    if (success) {
+      const userData = { userId, role, name: userName };
 
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(userData));
-        window.dispatchEvent(new Event("storage")); // ✅ تحديث `Navbar`
-        login(userData); // ✅ تحديث `UserContext`
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(userData));
 
-        alert("Connexion réussie !");
-        navigate(redirectUrl || "/home");
-      } else {
-        setError("Email ou mot de passe incorrect !");
+      if (role === "vendeur") {
+        localStorage.setItem("vendeurId", userId); // ✅ AJOUT IMPORTANT
       }
-    } catch (error) {
-      if (error.response) {
-        setError(error.response.data.message || "Email ou mot de passe incorrect !");
-      } else if (error.request) {
-        setError("Pas de réponse du serveur. Veuillez réessayer plus tard.");
-      } else {
-        setError("Une erreur s'est produite. Veuillez réessayer.");
-      }
+
+      window.dispatchEvent(new Event("storage")); // ✅ maj navbar
+      login(userData); // ✅ maj contexte utilisateur
+
+      alert("Connexion réussie !");
+      navigate(redirectUrl || "/home");
+    } else {
+      setError("Email ou mot de passe incorrect !");
     }
-  };
+  } catch (error) {
+    if (error.response) {
+      setError(error.response.data.message || "Email ou mot de passe incorrect !");
+    } else if (error.request) {
+      setError("Pas de réponse du serveur. Veuillez réessayer plus tard.");
+    } else {
+      setError("Une erreur s'est produite. Veuillez réessayer.");
+    }
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50">

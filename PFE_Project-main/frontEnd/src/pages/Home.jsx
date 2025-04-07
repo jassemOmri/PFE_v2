@@ -6,51 +6,74 @@ import Navbar from "../comoponents/Navbar";
 import UserContext from "../context/UserContext";
 
 const Home = () => {
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const navigate = useNavigate();
   const { user } = useContext(UserContext);
 
-  // Fonction pour gérer la recherche
-  const handleSearch = (searchTerm) => {
-    if (searchTerm.trim() === "") {
-      setFilteredProducts(products); // Affichez tous les produits si la recherche est vide
-    } else {
-      const filtered = products.filter((product) =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredProducts(filtered); // Filtrez les produits en fonction du terme de recherche
-    }
-  };
+  // 🟢 Récupérer la catégorie sélectionnée depuis localStorage
+  const selectedCategory = localStorage.getItem("selectedCategory") || "all";
 
-  // Charger tous les produits au montage du composant
+  // 🔄 Chargement initial des produits avec filtrage par catégorie
   useEffect(() => {
+    setLoading(true);
     axios
       .get("http://localhost:5000/api/products")
       .then((response) => {
-        setProducts(response.data);
-        setFilteredProducts(response.data); // Initialisez les produits filtrés avec tous les produits
-      })
-      .catch((error) => console.error("Erreur lors du chargement des produits:", error))
-      .finally(() => setLoading(false));
-  }, []);
+        const all = response.data;
 
-  // Fonction pour ajouter un produit au panier
+        setAllProducts(all); // stocke tout
+        if (selectedCategory === "all") {
+          setFilteredProducts(all);
+        } else {
+          const filtered = all.filter(
+            (product) => product.category === selectedCategory
+          );
+          setFilteredProducts(filtered);
+        }
+      })
+      .catch((error) =>
+        console.error("Erreur lors du chargement des produits:", error)
+      )
+      .finally(() => setLoading(false));
+  }, [selectedCategory]);
+
+  // 🔍 Filtrage en temps réel (barre de recherche)
+  const handleSearch = (searchTerm) => {
+    if (searchTerm.trim() === "") {
+      setFilteredProducts(
+        selectedCategory === "all"
+          ? allProducts
+          : allProducts.filter((product) => product.category === selectedCategory)
+      );
+    } else {
+      const filtered = allProducts.filter((product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      // filtre croisé avec la catégorie
+      const result =
+        selectedCategory === "all"
+          ? filtered
+          : filtered.filter((p) => p.category === selectedCategory);
+      setFilteredProducts(result);
+    }
+  };
+
+  // ➕ Ajouter au panier
   const addToCart = async (product) => {
     if (!user || !user.userId || user.role !== "acheteur") {
-      alert("Veuillez vous connecter pour ajouter des produits au panier !");
+      alert("Veuillez vous connecter comme acheteur !");
       return;
     }
 
-    const payload = {
-      acheteurId: user.userId,
-      productId: product._id,
-      quantity: 1,
-    };
-
     try {
-      await axios.post("http://localhost:5000/api/cart/add", payload);
+      await axios.post("http://localhost:5000/api/cart/add", {
+        acheteurId: user.userId,
+        productId: product._id,
+        quantity: 1,
+      });
       alert("Produit ajouté au panier !");
     } catch (error) {
       console.error("Erreur lors de l'ajout au panier:", error);
@@ -60,15 +83,20 @@ const Home = () => {
 
   return (
     <div>
-      {/* Passez la fonction handleSearch à Navbar */}
+      {/* 🔎 Navbar avec fonction de recherche */}
       <Navbar onSearch={handleSearch} />
 
       <div className="min-h-screen flex flex-col justify-between">
         <div className="container mx-auto p-8 flex-1">
-          <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Produits Disponibles</h2>
+          <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+            {selectedCategory === "all"
+              ? "Tous les produits"
+              : `Produits : ${selectedCategory}`}
+          </h2>
 
+          {/* 💬 Affichage des produits */}
           {loading ? (
-            <p className="text-center text-gray-500">Chargement des produits...</p>
+            <p className="text-center text-gray-500">Chargement...</p>
           ) : filteredProducts.length === 0 ? (
             <p className="text-center text-gray-500">Aucun produit trouvé</p>
           ) : (
@@ -78,16 +106,24 @@ const Home = () => {
                   key={product._id}
                   className="bg-white rounded-lg shadow-lg p-4 hover:shadow-2xl transition duration-300"
                 >
-                  <div onClick={() => navigate(`/product/${product._id}`)} className="cursor-pointer">
+                  <div
+                    onClick={() => navigate(`/product/${product._id}`)}
+                    className="cursor-pointer"
+                  >
                     <img
                       src={`http://localhost:5000/uploads/${product.image}`}
                       alt={product.name}
                       className="w-full h-48 object-cover rounded-md mb-3"
                     />
-                    <h4 className="text-lg font-semibold mb-1 text-gray-900">{product.name}</h4>
-                    <p className="text-gray-600 mb-2 text-lg font-medium">${product.price}</p>
+                    <h4 className="text-lg font-semibold mb-1 text-gray-900">
+                      {product.name}
+                    </h4>
+                    <p className="text-gray-600 mb-2 text-lg font-medium">
+                      ${product.price}
+                    </p>
                   </div>
 
+                  {/* 🛒 Bouton pour acheteur uniquement */}
                   {user && user.role === "acheteur" && (
                     <button
                       onClick={() => addToCart(product)}
@@ -102,6 +138,7 @@ const Home = () => {
           )}
         </div>
       </div>
+
       <Footer />
     </div>
   );

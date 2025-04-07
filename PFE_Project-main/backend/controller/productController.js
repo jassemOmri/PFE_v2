@@ -59,7 +59,7 @@ exports.addProduct = async (req, res) => {
     const vendeurId = decoded.userId; // Récupérez l'ID du vendeur depuis le token
 
     // Récupérez les données du produit depuis le corps de la requête
-    const { name, price, description } = req.body;
+    const { name,description ,regularPrice,salePrice,category} = req.body;
     const image = req.file ? req.file.filename : null;
         console.log("🛠️ Body reçu:", req.body);
         console.log("📸 Fichier reçu:", req.file);
@@ -75,7 +75,7 @@ exports.addProduct = async (req, res) => {
     }
 
     // Créez un nouveau produit
-    const newProduct = new Product({ name, price, image, vendeurId, description });
+    const newProduct = new Product({ name,image, vendeurId, description,regularPrice,salePrice,category });
     await newProduct.save();
 
     // Répondez avec le produit créé

@@ -5,6 +5,7 @@ import { FaFacebook, FaInstagram, FaWhatsapp, FaFacebookMessenger } from "react-
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import UserContext from "../context/UserContext";
+import { useNavigate } from "react-router-dom";
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -12,7 +13,7 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
     const { user } = useContext(UserContext); 
-
+const navigate = useNavigate();
   useEffect(() => {
     axios
       .get(`http://localhost:5000/api/products/${id}`)
@@ -49,6 +50,11 @@ const ProductDetails = () => {
     }
   };
 
+    // Rediriger vers la page de paiement en ligne
+   const handleOnlinePayment = () => {
+    const productTotal = product.price * quantity; // Calculer le total en fonction de la quantité
+    navigate("/payment", { state: { productTotal, source: "product" } }); // Passer productTotal et la source
+  };
   // Fonction pour partager sur les réseaux sociaux
   const handleShare = (platform) => {
     const url = window.location.href;
@@ -112,7 +118,10 @@ const ProductDetails = () => {
 
           {/* Boutons */}
           <div className="mt-6 flex flex-wrap gap-4">
-            <button className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">
+            <button   onClick={handleOnlinePayment}
+            
+             className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+             >
               Acheter maintenant
             </button>
             <button

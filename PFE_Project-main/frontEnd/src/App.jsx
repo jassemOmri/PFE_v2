@@ -13,6 +13,7 @@ import Navbar from "./comoponents/Navbar";
 import UserContext, { UserProvider } from "./context/UserContext";
 import Payment from "./pages/Payment"; 
 import AdminDashboard from "./comoponents/AdminDashboard"; // Importez le composant AdminDashboard
+import VendeurCommandes from "./comoponents/VendeurCommandes";
 
 const App = () => {
   const { user } = useContext(UserContext);
@@ -28,7 +29,7 @@ const App = () => {
       {/* Passez la fonction handleSearch à Navbar */}
       {!user && <Navbar onSearch={handleSearch} />}
 
-      {user && <UserNavbar />}
+      
      
       <Routes>
         <Route path="/" element={<Home />} />
@@ -40,6 +41,7 @@ const App = () => {
         <Route path="/livreur-dashboard" element={<LivreurDashboard />} />
         <Route path="/acheteur-dashboard" element={<AcheteurDashboard />} />
         <Route path="/vendeur-dashboard" element={<VendeurDashboard />} />
+        <Route path="/vendeur-commandes" element={<VendeurCommandes />} />
         <Route path="/product/:id" element={<ProductDetails />} />
         <Route path="*" element={<Navigate to="/" />} />
          <Route path="/payment" element={<Payment />} />

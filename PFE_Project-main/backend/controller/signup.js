@@ -17,6 +17,7 @@ exports.signup = async (req, res) => {
     const newUser = new User({ name, email, password: hashedPassword, role });
     await newUser.save();
 
+    res.json("saye wslit")
     const token = jwt.sign({ userId: newUser._id, role: newUser.role }, SECRET_KEY, { expiresIn: "1h" });
 
     res.status(201).json({ success: true, message: "Utilisateur enregistré avec succès !", token });

@@ -2,10 +2,14 @@ const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  price: { type: Number, required: true },
+ 
   image: { type: String, required: true },
   description:{type:String,required:true},
-  vendeurId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // 🔥 Associer le produit à un vendeur
+  vendeurId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  regularPrice: { type: Number, required: true },
+  salePrice: { type: Number, required: true },
+    
+    category:{type:String,required:true},
 });
 
 module.exports = mongoose.model("Product", productSchema);
